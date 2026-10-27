@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="صفحة مشاركة موقع العميل مع مندوب التوصيل">
+  <title>إرسال موقعك للمندوب</title>
+  <style>
+    :root { font-family: Tahoma, Arial, sans-serif; color: #17202a; background: #f3f6f8; }
+    body { margin: 0; padding: 20px; }
+    main { max-width: 480px; margin: 24px auto; background: white; border-radius: 18px; padding: 24px; box-shadow: 0 8px 30px #12202b12; }
+    h1 { font-size: 1.55rem; margin-top: 0; }
+    p { line-height: 1.8; }
+    label { display: block; margin: 14px 0 6px; font-weight: bold; }
+    input { width: 100%; box-sizing: border-box; border: 1px solid #cbd5dc; border-radius: 10px; padding: 12px; font-size: 1rem; }
+    button, .linkbtn { display: block; width: 100%; box-sizing: border-box; border: 0; border-radius: 12px; padding: 14px; margin-top: 12px; font-size: 1rem; font-weight: bold; text-align: center; text-decoration: none; cursor: pointer; }
+    #locate { color: white; background: #147d52; }
+    #send { color: white; background: #1769aa; }
+    #maps { color: #174a78; background: #e8f2fb; }
+    .hint { font-size: .9rem; color: #53616b; }
+    #status { padding: 10px; background: #f3f6f8; border-radius: 10px; overflow-wrap: anywhere; }
+    .small { font-size: .8rem; color: #687780; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>📍 أرسل موقعك للمندوب</h1>
+  <p>اضغط على الزر لتحديد موقعك الحالي. سيطلب هاتفك إذناً للوصول إلى الموقع. لن تتم مشاركة موقعك إلا عندما تختار إرساله عبر واتساب.</p>
+
+  <label for="customerName">اسمك (اختياري)</label>
+  <input id="customerName" type="text" placeholder="مثال: أحمد">
+
+  <label for="employeePhone">رقم واتساب المندوب</label>
+  <input id="employeePhone" type="tel" inputmode="tel" placeholder="مثال: 9639XXXXXXXX" autocomplete="tel">
+  <p class="hint">اكتب الرقم مع مفتاح البلد، من دون + أو مسافات أو شرطات. مثال توضيحي: 9639XXXXXXXX.</p>
+
+  <button id="locate" type="button">تحديد موقعي الحالي</button>
+  <p id="status" role="status" aria-live="polite">لم يتم تحديد الموقع بعد.</p>
+  <a id="maps" class="linkbtn" href="#" target="_blank" rel="noopener" hidden>عرض موقعي على خرائط Google</a>
+  <button id="send" type="button" hidden>إرسال الموقع عبر واتساب</button>
+  <p class="small">إذا لم يعمل تحديد الموقع، تأكد من فتح الصفحة عبر رابط HTTPS والسماح للموقع بالوصول إلى موقعك، أو تواصل مع المندوب لوصف العنوان.</p>
+</main>
+<script>
+(() => {
+  let coords = null;
+  const locate = document.getElementById('locate');
+  const status = document.getElementById('status');
+  const maps = document.getElementById('maps');
+  const send = document.getElementById('send');
+  const phone = document.getElementById('employeePhone');
+  const name = document.getElementById('customerName');
+
+  locate.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      status.textContent = 'متصفحك لا يدعم تحديد الموقع. جرّب متصفحاً حديثاً على الهاتف.';
+      return;
+    }
+    status.textContent = 'جارٍ تحديد موقعك… وافق على طلب الإذن إذا ظهر.';
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        coords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        const url = `https://www.google.com/maps?q=${coords.lat},${coords.lon}`;
+        maps.href = url;
+        maps.hidden = false;
+        send.hidden = false;
+        status.textContent = `تم تحديد الموقع. دقة الموقع التقريبية: ${Math.round(pos.coords.accuracy)} متر.`;
+      },
+      (err) => {
+        const messages = {
+          1: 'لم تسمح بالوصول للموقع. اسمح للموقع باستخدام موقعك ثم حاول مجدداً.',
+          2: 'تعذر تحديد الموقع حالياً. تأكد من تشغيل خدمات الموقع وحاول مجدداً.',
+          3: 'انتهت مهلة تحديد الموقع. حاول مرة أخرى في مكان مفتوح.'
+        };
+        status.textContent = messages[err.code] || 'تعذر تحديد الموقع. حاول مرة أخرى.';
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    );
+  });
+
+  send.addEventListener('click', () => {
+    if (!coords) {
+      status.textContent = 'حدد موقعك أولاً.';
+      return;
+    }
+    const cleanPhone = phone.value.replace(/[+\s()-]/g, '');
+    if (!/^\d{8,15}$/.test(cleanPhone)) {
+      status.textContent = 'اكتب رقم واتساب المندوب مع مفتاح البلد، أرقام فقط، ثم أعد المحاولة.';
+      phone.focus();
+      return;
+    }
+    const mapUrl = `https://www.google.com/maps?q=${coords.lat},${coords.lon}`;
+    const customer = name.value.trim() ? `اسم العميل: ${name.value.trim()}\n` : '';
+    const message = `${customer}موقعي لتوصيل الطلب:\n${mapUrl}\nالإحداثيات: ${coords.lat}, ${coords.lon}`;
+    window.location.href = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+  });
+})();
+</script>
+</body>
+</html>
